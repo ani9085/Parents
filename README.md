@@ -1,36 +1,142 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 외출 도우미
 
-## Getting Started
+어르신이 자주 가는 장소를 쉽게 저장하고, 버튼 한 번으로 카카오맵 또는 네이버 지도에서 길찾기를 시작할 수 있도록 만든 간단한 웹앱입니다.
 
-First, run the development server:
+자녀나 가족이 부모님 휴대폰에 자주 가는 장소를 미리 등록해 드리고, 부모님은 큰 버튼을 눌러 바로 길 안내를 받을 수 있는 사용 흐름을 목표로 합니다.
+
+## 주요 기능
+
+### 1. 큰 버튼 중심의 홈 화면
+
+- 길찾기
+- 내 장소 관리
+- 가족과 공유
+- 설정
+
+어르신이 사용하기 쉽도록 메뉴를 4개로 단순화하고, 큰 글씨와 큰 버튼을 사용합니다.
+
+### 2. 자주 가는 장소 저장
+
+장소 이름, 주소, 이동 방법을 저장할 수 있습니다.
+
+예시:
+
+- 큰딸 집 / 서울시 ○○구 ○○로 / 대중교통
+- 병원 / 서울시 ○○구 ○○병원 / 자동차
+- 복지관 / 서울시 ○○구 ○○복지관 / 도보
+
+현재 저장 데이터는 서버가 아니라 사용자의 브라우저 `localStorage`에 저장됩니다.
+
+### 3. 지도 앱 실행
+
+저장한 장소를 누르면 선택한 지도 앱으로 이동합니다.
+
+지원 지도:
+
+- 카카오맵
+- 네이버 지도
+
+모바일에서는 지도 앱 실행을 먼저 시도하고, 앱 실행이 어려운 경우 웹 지도로 연결합니다.
+
+### 4. 가족과 공유
+
+가족이 장소 목록을 QR 코드 또는 공유 코드 형태로 전달할 수 있습니다.
+
+부모님 휴대폰에서 공유 코드를 붙여 넣거나 QR 코드를 열면 장소 목록을 가져와 저장할 수 있습니다.
+
+## 기술 스택
+
+- Next.js
+- React
+- TypeScript
+- Tailwind CSS
+- qrcode
+- Browser localStorage
+
+## 실행 방법
+
+먼저 의존성을 설치합니다.
+
+```bash
+npm install
+```
+
+개발 서버를 실행합니다.
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+브라우저에서 아래 주소로 접속합니다.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```text
+http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+프로덕션 빌드는 아래 명령어를 사용합니다.
 
-## Learn More
+```bash
+npm run build
+npm run start
+```
 
-To learn more about Next.js, take a look at the following resources:
+## 프로젝트 구조
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```text
+src/
+  app/
+    page.tsx              # 홈 화면
+    go/page.tsx           # 저장 장소 길찾기 화면
+    places/page.tsx       # 장소 추가, 수정, 삭제 화면
+    share/page.tsx        # 가족 공유 및 가져오기 화면
+    settings/page.tsx     # 지도 앱 선택 화면
+    layout.tsx            # 전체 레이아웃 및 메타데이터
+    globals.css           # 전역 스타일
+  components/
+    PageHeader.tsx        # 공통 페이지 헤더
+  lib/
+    maps.ts               # 카카오맵/네이버지도 실행 로직
+    share.ts              # 공유 코드 인코딩/디코딩 로직
+    storage.ts            # localStorage 저장/조회 로직
+    types.ts              # 공통 타입 정의
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 개인정보 및 보안 주의사항
 
-## Deploy on Vercel
+이 앱은 사용자가 입력한 장소 이름과 주소를 다룹니다. 따라서 아래 내용을 반드시 주의해야 합니다.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. 장소 정보는 현재 서버로 전송되지 않고 브라우저의 `localStorage`에 저장됩니다.
+2. 같은 휴대폰 또는 같은 브라우저를 사용하는 사람이 저장된 장소를 볼 수 있습니다.
+3. 가족 공유 코드는 암호화가 아니라 인코딩입니다.
+4. 공유 코드 또는 QR 코드에는 장소 이름과 주소 정보가 포함될 수 있습니다.
+5. 공유 코드를 모르는 사람에게 전달하지 않도록 주의해야 합니다.
+6. GitHub 공개 저장소에 API Key, 지도 API Key, 비밀번호, 개인 토큰 등을 절대 직접 올리면 안 됩니다.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 현재 한계
+
+- 주소를 좌표로 변환하지 않고 지도 앱의 검색 기능을 이용합니다.
+- 카카오맵/네이버 지도 앱 실행 방식은 기기와 브라우저 환경에 따라 다르게 동작할 수 있습니다.
+- 장소 데이터는 사용자의 브라우저에만 저장되므로, 휴대폰을 바꾸면 직접 공유 기능으로 옮겨야 합니다.
+- 공유 코드는 암호화되어 있지 않으므로 민감한 장소 정보 공유에는 주의가 필요합니다.
+
+## 향후 개선 아이디어
+
+- PWA 적용으로 휴대폰 홈 화면에 앱처럼 설치하기
+- 장소 개수 제한 및 공유 코드 길이 안내
+- 공유 코드에 비밀번호 또는 암호화 옵션 추가
+- 보호자용 관리 화면 추가
+- 자주 쓰는 목적지 아이콘 추가
+- 실제 Android/iPhone에서 카카오맵/네이버 지도 앱 실행 테스트
+- Vercel 등으로 배포 후 QR 코드로 바로 접속 가능하게 개선
+
+## 개발 메모
+
+이 프로젝트는 어르신 사용성을 우선으로 설계되었습니다.
+
+따라서 일반적인 앱보다 아래 원칙을 우선합니다.
+
+- 작은 글씨보다 큰 글씨
+- 많은 메뉴보다 적은 메뉴
+- 복잡한 설정보다 바로 누를 수 있는 버튼
+- 실패 시 앱이 멈추지 않고 웹 지도로 대체 연결
+- 확대/축소를 막지 않는 접근성 설정
