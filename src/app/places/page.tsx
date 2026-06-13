@@ -4,13 +4,22 @@ import { useEffect, useRef, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import {
   addFavorite,
+  clearPlan,
   deleteFavorite,
   getFavorites,
+  getPlan,
+  setPlan,
+  todayStr,
   updateFavorite,
 } from "@/lib/storage";
 import { fileToDownscaledDataUrl } from "@/lib/photo";
 import { getCurrentLocation } from "@/lib/safety";
-import { TRANSPORT_LABELS, type Destination, type TransportType } from "@/lib/types";
+import {
+  TRANSPORT_LABELS,
+  type Destination,
+  type Plan,
+  type TransportType,
+} from "@/lib/types";
 
 interface FormState {
   name: string;
@@ -30,11 +39,34 @@ export default function PlacesPage() {
   const [form, setForm] = useState<FormState>(EMPTY);
   const [error, setError] = useState<string | null>(null);
   const [coordNote, setCoordNote] = useState<string | null>(null);
+  const [plan, setPlanState] = useState<Plan | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setFavorites(getFavorites());
+    setPlanState(getPlan());
   }, []);
+
+  const plannedDest = plan ? favorites.find((d) => d.id === plan.destinationId) : undefined;
+
+  function makeTodayPlan(dest: Destination) {
+    const next: Plan = { destinationId: dest.id, date: todayStr(), timeLabel: plan?.timeLabel };
+    setPlan(next);
+    setPlanState(next);
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function removeTodayPlan() {
+    clearPlan();
+    setPlanState(null);
+  }
+
+  function updatePlanTime(timeLabel: string) {
+    if (!plan) return;
+    const next: Plan = { ...plan, timeLabel: timeLabel.trim() || undefined };
+    setPlan(next);
+    setPlanState(next);
+  }
 
   function resetForm() {
     setForm(EMPTY);
@@ -129,11 +161,49 @@ export default function PlacesPage() {
     if (!ok) return;
     setFavorites(deleteFavorite(dest.id));
     if (editingId === dest.id) resetForm();
+    if (plan?.destinationId === dest.id) removeTodayPlan();
   }
 
   return (
     <main style={{ maxWidth: 560, margin: "0 auto", padding: "1.5rem 1rem 3rem" }}>
       <PageHeader title="내 장소 관리" />
+
+      {/* Today's outing plan — shows as the big card on the home screen. */}
+      <div
+        className="eoc-card"
+        style={{ marginBottom: "2rem", borderColor: "#f59e0b", background: "#fffbeb" }}
+      >
+        <h2 style={{ fontSize: "1.45rem", fontWeight: 800, marginBottom: "0.5rem" }}>
+          📅 오늘 갈 곳
+        </h2>
+        {plannedDest ? (
+          <>
+            <p style={{ fontSize: "1.5rem", fontWeight: 700, marginBottom: "0.75rem" }}>
+              {plannedDest.name}
+            </p>
+            <label className="eoc-label" htmlFor="plantime">시간 (선택)</label>
+            <input
+              id="plantime"
+              className="eoc-input"
+              placeholder="예: 오전 10시"
+              defaultValue={plan?.timeLabel ?? ""}
+              onBlur={(e) => updatePlanTime(e.target.value)}
+            />
+            <button
+              type="button"
+              className="eoc-btn eoc-btn--outline"
+              style={{ marginTop: "0.75rem", minHeight: "3.6rem", fontSize: "1.2rem" }}
+              onClick={removeTodayPlan}
+            >
+              오늘 일정 지우기
+            </button>
+          </>
+        ) : (
+          <p className="eoc-muted">
+            아래 장소에서 <b>“오늘 갈 곳으로”</b>를 누르면, 첫 화면 맨 위에 큰 버튼으로 표시됩니다.
+          </p>
+        )}
+      </div>
 
       <form onSubmit={handleSubmit} className="eoc-card" style={{ marginBottom: "2rem" }}>
         <h2 style={{ fontSize: "1.6rem", fontWeight: 800, marginBottom: "1rem" }}>
@@ -288,6 +358,19 @@ export default function PlacesPage() {
                   </div>
                 </div>
               </div>
+              <button
+                type="button"
+                className={
+                  plan?.destinationId === dest.id
+                    ? "eoc-btn eoc-btn--accent"
+                    : "eoc-btn eoc-btn--outline"
+                }
+                style={{ minHeight: "3.6rem", fontSize: "1.25rem", marginBottom: "0.75rem" }}
+                onClick={() => makeTodayPlan(dest)}
+                aria-pressed={plan?.destinationId === dest.id}
+              >
+                {plan?.destinationId === dest.id ? "✅ 오늘 갈 곳" : "📅 오늘 갈 곳으로"}
+              </button>
               <div style={{ display: "flex", gap: "0.75rem" }}>
                 <button
                   type="button"

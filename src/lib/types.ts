@@ -18,6 +18,15 @@ export interface Destination {
   lng?: number;
 }
 
+/** Today's planned outing — one chosen destination, optionally dated. */
+export interface Plan {
+  destinationId: string;
+  /** 'YYYY-MM-DD' (local). If set, the plan only shows on that day. */
+  date?: string;
+  /** Free-text time hint shown on the home card, e.g. "오전 10시". */
+  timeLabel?: string;
+}
+
 export type MapProvider = "kakao" | "naver";
 
 export type TextSize = "normal" | "large" | "xlarge";

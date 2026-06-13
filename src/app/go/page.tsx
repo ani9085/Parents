@@ -25,11 +25,24 @@ export default function GoPage() {
   const [launching, setLaunching] = useState(false);
 
   useEffect(() => {
-    setFavorites(getFavorites());
+    const favs = getFavorites();
+    setFavorites(favs);
     const s = getSettings();
     setProvider(s.provider);
     setVoice(s.voice);
     setLoaded(true);
+
+    // Deep-linked from the home "오늘 갈 곳" card: open its confirm card.
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get("dest");
+      if (id) {
+        const match = favs.find((d) => d.id === id);
+        if (match) setSelected(match);
+      }
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   function confirmDestination(dest: Destination) {

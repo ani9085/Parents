@@ -1,5 +1,6 @@
 import Link from "next/link";
 import SafetyBar from "@/components/SafetyBar";
+import TodayPlanCard from "@/components/TodayPlanCard";
 
 // Main dashboard. Deliberately limited to 4 large buttons so the screen is
 // never overwhelming, with a separate safety bar (SOS / arrival) below.
@@ -51,6 +52,8 @@ export default function Home() {
       <p style={{ textAlign: "center", color: "#475569", marginBottom: "2rem" }}>
         가고 싶은 곳을 눌러 보세요
       </p>
+
+      <TodayPlanCard />
 
       <nav style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
         {MENU.map((item) => (

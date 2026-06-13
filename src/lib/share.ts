@@ -14,6 +14,10 @@ export interface ShareConfig {
   textSize?: TextSize;
   highContrast?: boolean;
   voice?: boolean;
+  // Plan is shared BY NAME because destination ids are regenerated on import.
+  planName?: string;
+  planDate?: string;
+  planTimeLabel?: string;
 }
 
 interface SharePayload {

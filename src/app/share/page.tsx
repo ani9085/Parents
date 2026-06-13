@@ -4,13 +4,20 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import QRCode from "qrcode";
 import PageHeader from "@/components/PageHeader";
-import { getFavorites, getSettings, mergeFavorites, patchSettings } from "@/lib/storage";
+import {
+  getFavorites,
+  getPlan,
+  getSettings,
+  mergeFavorites,
+  patchSettings,
+  setPlan,
+} from "@/lib/storage";
 import { buildShareUrl, decodeShare, encodeFavorites, type ShareConfig } from "@/lib/share";
 import { TRANSPORT_LABELS, type Destination } from "@/lib/types";
 
-function configFromSettings(): ShareConfig {
+function configFromSettings(favs: Destination[]): ShareConfig {
   const s = getSettings();
-  return {
+  const config: ShareConfig = {
     provider: s.provider,
     familyName: s.familyName,
     familyPhone: s.familyPhone,
@@ -18,6 +25,15 @@ function configFromSettings(): ShareConfig {
     highContrast: s.highContrast,
     voice: s.voice,
   };
+  // Share the plan BY NAME so it survives id regeneration on import.
+  const plan = getPlan();
+  const planned = plan ? favs.find((d) => d.id === plan.destinationId) : undefined;
+  if (plan && planned) {
+    config.planName = planned.name;
+    config.planDate = plan.date;
+    config.planTimeLabel = plan.timeLabel;
+  }
+  return config;
 }
 
 export default function SharePage() {
@@ -35,7 +51,7 @@ export default function SharePage() {
   useEffect(() => {
     const favs = getFavorites();
     setFavorites(favs);
-    const config = configFromSettings();
+    const config = configFromSettings(favs);
     setShareCode(encodeFavorites(favs, config));
 
     if (favs.length > 0) {
@@ -89,7 +105,15 @@ export default function SharePage() {
     const merged = mergeFavorites(incoming);
     setFavorites(merged);
     // Apply shared family contact / map preference too.
-    if (incomingConfig) patchSettings(incomingConfig);
+    if (incomingConfig) {
+      const { planName, planDate, planTimeLabel, ...settingsPatch } = incomingConfig;
+      patchSettings(settingsPatch);
+      // Resolve the shared plan (by name) to a local destination id.
+      if (planName) {
+        const target = merged.find((d) => d.name === planName);
+        if (target) setPlan({ destinationId: target.id, date: planDate, timeLabel: planTimeLabel });
+      }
+    }
     setIncoming(null);
     setIncomingConfig(undefined);
     setPasted("");

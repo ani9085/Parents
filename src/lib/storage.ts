@@ -1,10 +1,11 @@
 // localStorage-backed persistence. The only "database" in this app.
 // Every access is wrapped in try/catch and guarded for SSR (no window on server).
 
-import type { Destination, MapProvider, Settings, TextSize } from "./types";
+import type { Destination, MapProvider, Plan, Settings, TextSize } from "./types";
 
 const FAVORITES_KEY = "eoc.favorites.v1";
 const SETTINGS_KEY = "eoc.settings.v1";
+const PLAN_KEY = "eoc.plan.v1";
 
 export const SETTINGS_CHANGED_EVENT = "eoc-settings-changed";
 
@@ -156,6 +157,56 @@ export function patchSettings(patch: Partial<Settings>): Settings {
   const next = { ...getSettings(), ...patch };
   saveSettings(next);
   return next;
+}
+
+// --- Today's outing plan ---
+
+/** Local 'YYYY-MM-DD' for "today". */
+export function todayStr(): string {
+  const d = new Date();
+  const m = `${d.getMonth() + 1}`.padStart(2, "0");
+  const day = `${d.getDate()}`.padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
+export function getPlan(): Plan | null {
+  if (!isBrowser()) return null;
+  try {
+    const raw = window.localStorage.getItem(PLAN_KEY);
+    if (!raw) return null;
+    const p = JSON.parse(raw) as Record<string, unknown>;
+    if (typeof p.destinationId !== "string") return null;
+    return {
+      destinationId: p.destinationId,
+      date: typeof p.date === "string" ? p.date : undefined,
+      timeLabel: typeof p.timeLabel === "string" ? p.timeLabel : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function setPlan(plan: Plan): void {
+  if (!isBrowser()) return;
+  try {
+    window.localStorage.setItem(PLAN_KEY, JSON.stringify(plan));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function clearPlan(): void {
+  if (!isBrowser()) return;
+  try {
+    window.localStorage.removeItem(PLAN_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** A plan is "active" if it has no date or its date is today. */
+export function isPlanActiveToday(plan: Plan | null): boolean {
+  return !!plan && (!plan.date || plan.date === todayStr());
 }
 
 export type { MapProvider };

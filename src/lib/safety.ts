@@ -49,8 +49,3 @@ export function buildLocationMessage(
   }
   return `${who}지금 위치를 확인할 수 없어요. 연락 부탁드려요.`;
 }
-
-export function buildArrivalMessage(senderLabel: string): string {
-  const who = senderLabel ? `${senderLabel} ` : "";
-  return `${who}무사히 도착했어요. 걱정 마세요.`;
-}
