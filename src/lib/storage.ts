@@ -1,15 +1,45 @@
 // localStorage-backed persistence. The only "database" in this app.
 // Every access is wrapped in try/catch and guarded for SSR (no window on server).
 
-import type { Destination, Settings } from "./types";
+import type { Destination, MapProvider, Settings, TextSize } from "./types";
 
 const FAVORITES_KEY = "eoc.favorites.v1";
 const SETTINGS_KEY = "eoc.settings.v1";
 
-const DEFAULT_SETTINGS: Settings = { provider: "kakao" };
+export const SETTINGS_CHANGED_EVENT = "eoc-settings-changed";
+
+const DEFAULT_SETTINGS: Settings = {
+  provider: "kakao",
+  textSize: "normal",
+  highContrast: false,
+  voice: false,
+};
 
 function isBrowser(): boolean {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+}
+
+function isTransport(v: unknown): v is Destination["transportType"] {
+  return v === "transit" || v === "car" || v === "walk";
+}
+
+/** Coerce an unknown record into a valid Destination, or null. */
+export function coerceDestination(d: unknown): Destination | null {
+  if (!d || typeof d !== "object") return null;
+  const o = d as Record<string, unknown>;
+  if (typeof o.name !== "string" || typeof o.address !== "string") return null;
+  if (!isTransport(o.transportType)) return null;
+  const out: Destination = {
+    id: typeof o.id === "string" ? o.id : makeId(),
+    name: o.name,
+    address: o.address,
+    transportType: o.transportType,
+  };
+  if (typeof o.memo === "string" && o.memo.trim()) out.memo = o.memo;
+  if (typeof o.photo === "string" && o.photo.startsWith("data:image")) out.photo = o.photo;
+  if (typeof o.lat === "number" && Number.isFinite(o.lat)) out.lat = o.lat;
+  if (typeof o.lng === "number" && Number.isFinite(o.lng)) out.lng = o.lng;
+  return out;
 }
 
 /** Read and parse the full favorites list. Returns [] on any failure. */
@@ -20,17 +50,7 @@ export function getFavorites(): Destination[] {
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    // Defensive: keep only well-formed records.
-    return parsed.filter(
-      (d): d is Destination =>
-        d &&
-        typeof d.id === "string" &&
-        typeof d.name === "string" &&
-        typeof d.address === "string" &&
-        (d.transportType === "transit" ||
-          d.transportType === "car" ||
-          d.transportType === "walk"),
-    );
+    return parsed.map(coerceDestination).filter((d): d is Destination => d !== null);
   } catch {
     return [];
   }
@@ -43,12 +63,12 @@ export function saveFavorites(list: Destination[]): boolean {
     window.localStorage.setItem(FAVORITES_KEY, JSON.stringify(list));
     return true;
   } catch {
+    // Most likely QuotaExceededError (too many/large photos).
     return false;
   }
 }
 
 function makeId(): string {
-  // crypto.randomUUID is widely available; fall back if missing.
   try {
     if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
   } catch {
@@ -57,17 +77,19 @@ function makeId(): string {
   return `d_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-/** Add a new destination; returns the created record. */
-export function addFavorite(input: Omit<Destination, "id">): Destination {
+/** Add a new destination; returns the created record, or null if save failed. */
+export function addFavorite(input: Omit<Destination, "id">): Destination | null {
   const record: Destination = { ...input, id: makeId() };
   const list = getFavorites();
   list.push(record);
-  saveFavorites(list);
-  return record;
+  return saveFavorites(list) ? record : null;
 }
 
 /** Update an existing destination by id. Returns the updated list. */
-export function updateFavorite(id: string, patch: Partial<Omit<Destination, "id">>): Destination[] {
+export function updateFavorite(
+  id: string,
+  patch: Partial<Omit<Destination, "id">>,
+): Destination[] {
   const list = getFavorites().map((d) => (d.id === id ? { ...d, ...patch } : d));
   saveFavorites(list);
   return list;
@@ -94,16 +116,24 @@ export function mergeFavorites(incoming: Destination[]): Destination[] {
   return current;
 }
 
+function isTextSize(v: unknown): v is TextSize {
+  return v === "normal" || v === "large" || v === "xlarge";
+}
+
 export function getSettings(): Settings {
   if (!isBrowser()) return DEFAULT_SETTINGS;
   try {
     const raw = window.localStorage.getItem(SETTINGS_KEY);
     if (!raw) return DEFAULT_SETTINGS;
-    const parsed = JSON.parse(raw);
-    if (parsed?.provider === "kakao" || parsed?.provider === "naver") {
-      return { provider: parsed.provider };
-    }
-    return DEFAULT_SETTINGS;
+    const p = JSON.parse(raw) as Record<string, unknown>;
+    return {
+      provider: p.provider === "naver" ? "naver" : "kakao",
+      textSize: isTextSize(p.textSize) ? p.textSize : "normal",
+      highContrast: p.highContrast === true,
+      voice: p.voice === true,
+      familyName: typeof p.familyName === "string" ? p.familyName : undefined,
+      familyPhone: typeof p.familyPhone === "string" ? p.familyPhone : undefined,
+    };
   } catch {
     return DEFAULT_SETTINGS;
   }
@@ -113,8 +143,19 @@ export function saveSettings(settings: Settings): boolean {
   if (!isBrowser()) return false;
   try {
     window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    // Let the theme applier and any open screen react immediately.
+    window.dispatchEvent(new Event(SETTINGS_CHANGED_EVENT));
     return true;
   } catch {
     return false;
   }
 }
+
+/** Patch a subset of settings and persist. Returns the new settings. */
+export function patchSettings(patch: Partial<Settings>): Settings {
+  const next = { ...getSettings(), ...patch };
+  saveSettings(next);
+  return next;
+}
+
+export type { MapProvider };

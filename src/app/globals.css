@@ -2,34 +2,57 @@
 
 /*
   Senior-first design tokens.
-  - Large base font (1pt ≈ 1.333px; 24pt ≈ 32px). Body text is generous and
-    interactive text is larger still.
-  - High contrast: near-black text on white, strong saturated buttons.
-  - Big tap targets: every button is at least 80px tall.
-  - No dark-mode auto-switch — a single, predictable high-contrast theme.
+  - Everything is rem-based and scales from the <html> font-size, which is set
+    by `data-text-size` (보통/크게/아주크게). This composes safely with the OS
+    display-zoom seniors often enable, instead of fighting it.
+  - Buttons use min-height (never fixed height) and wrap, so larger text or OS
+    zoom never clips the label.
+  - Two themes via `data-contrast`: a clean default and a vivid high-contrast
+    (yellow background, pure-black text, thick black borders) for low vision.
 */
 
 :root {
   --background: #ffffff;
   --foreground: #111111;
-  --brand: #1d4ed8; /* strong blue */
+  --muted-text: #475569;
+  --brand: #1d4ed8;
   --brand-press: #1e40af;
-  --accent: #047857; /* strong green */
-  --danger: #b91c1c; /* strong red */
-  --muted: #f1f5f9;
+  --accent: #047857;
+  --accent-press: #065f46;
+  --danger: #b91c1c;
+  --danger-press: #991b1b;
+  --surface: #ffffff;
   --border: #94a3b8;
+  --border-width: 3px;
 }
 
-html {
-  font-size: 20px; /* base; headings/buttons scale up from here */
+/* High-contrast theme for low vision (cataracts / presbyopia). */
+html[data-contrast="high"] {
+  --background: #ffff00;
+  --foreground: #000000;
+  --muted-text: #000000;
+  --brand: #000000;
+  --brand-press: #1a1a1a;
+  --accent: #0a3d00;
+  --accent-press: #062600;
+  --danger: #7f0000;
+  --danger-press: #5a0000;
+  --surface: #ffffff;
+  --border: #000000;
+  --border-width: 4px;
 }
+
+/* Text-size tiers — drive everything via the root font-size. */
+html { font-size: 18px; }
+html[data-text-size="large"] { font-size: 21px; }
+html[data-text-size="xlarge"] { font-size: 24px; }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, "Malgun Gothic", "맑은 고딕", Helvetica, sans-serif;
   line-height: 1.5;
-  font-size: 1.2rem; /* 24px body text */
+  font-size: 1.25rem;
 }
 
 /* Large, high-contrast buttons used across the app. */
@@ -39,77 +62,62 @@ body {
   justify-content: center;
   gap: 0.6rem;
   width: 100%;
-  min-height: 88px;
+  min-height: 4.6rem; /* ~83px @18px base; grows with text size */
   padding: 1rem 1.25rem;
-  font-size: 1.6rem; /* 32px */
+  font-size: 1.6rem;
   font-weight: 700;
   line-height: 1.25;
   border-radius: 1rem;
-  border: 3px solid transparent;
+  border: var(--border-width) solid transparent;
   color: #ffffff;
   background: var(--brand);
   text-align: center;
   cursor: pointer;
   transition: background-color 0.1s ease, transform 0.05s ease;
   -webkit-tap-highlight-color: transparent;
+  word-break: keep-all;
 }
-.eoc-btn:active {
-  transform: scale(0.99);
-}
-.eoc-btn:focus-visible {
-  outline: 4px solid #f59e0b;
-  outline-offset: 3px;
-}
-.eoc-btn:hover {
-  background: var(--brand-press);
-}
+.eoc-btn:active { transform: scale(0.99); }
+.eoc-btn:focus-visible { outline: 4px solid #f59e0b; outline-offset: 3px; }
+.eoc-btn:hover { background: var(--brand-press); }
 
-.eoc-btn--accent {
-  background: var(--accent);
-}
-.eoc-btn--accent:hover {
-  background: #065f46;
-}
+html[data-contrast="high"] .eoc-btn { border-color: #000000; }
 
-.eoc-btn--danger {
-  background: var(--danger);
-}
-.eoc-btn--danger:hover {
-  background: #991b1b;
-}
+.eoc-btn--accent { background: var(--accent); }
+.eoc-btn--accent:hover { background: var(--accent-press); }
 
-/* Secondary / outline button: white with dark text and a heavy border. */
+.eoc-btn--danger { background: var(--danger); }
+.eoc-btn--danger:hover { background: var(--danger-press); }
+
+/* Secondary / outline button: surface with dark text and a heavy border. */
 .eoc-btn--outline {
-  background: #ffffff;
+  background: var(--surface);
   color: var(--foreground);
   border-color: var(--border);
 }
-.eoc-btn--outline:hover {
-  background: var(--muted);
-}
+.eoc-btn--outline:hover { filter: brightness(0.96); }
 
-.eoc-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+.eoc-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
 /* Tall, readable form fields. */
 .eoc-input,
-.eoc-select {
+.eoc-select,
+.eoc-textarea {
   width: 100%;
-  min-height: 72px;
+  min-height: 3.8rem;
   padding: 0.75rem 1rem;
-  font-size: 1.4rem; /* 28px */
-  border: 3px solid var(--border);
+  font-size: 1.4rem;
+  border: var(--border-width) solid var(--border);
   border-radius: 0.85rem;
-  background: #ffffff;
+  background: var(--surface);
   color: var(--foreground);
 }
+.eoc-textarea { min-height: 6rem; }
 .eoc-input:focus,
-.eoc-select:focus {
+.eoc-select:focus,
+.eoc-textarea:focus {
   outline: 4px solid var(--brand);
   outline-offset: 1px;
-  border-color: var(--brand);
 }
 
 .eoc-label {
@@ -119,9 +127,72 @@ body {
   margin-bottom: 0.4rem;
 }
 
+.eoc-muted { color: var(--muted-text); }
+
 .eoc-card {
-  border: 3px solid var(--border);
+  border: var(--border-width) solid var(--border);
   border-radius: 1rem;
   padding: 1rem 1.25rem;
-  background: #ffffff;
+  background: var(--surface);
+}
+
+/* Full-screen "preparing the map…" overlay to stop repeated taps. */
+.eoc-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.78);
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  text-align: center;
+  padding: 2rem;
+}
+.eoc-overlay__icon { font-size: 4rem; animation: eoc-pulse 1s ease-in-out infinite; }
+.eoc-overlay__text { font-size: 1.8rem; font-weight: 800; }
+@keyframes eoc-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.15); opacity: 0.7; }
+}
+
+/* Centered confirmation modal shown before launching the map. */
+.eoc-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.eoc-modal {
+  width: 100%;
+  max-width: 30rem;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--surface);
+  color: var(--foreground);
+  border: var(--border-width) solid var(--border);
+  border-radius: 1.25rem;
+  padding: 1.5rem;
+}
+
+.eoc-photo {
+  width: 100%;
+  border-radius: 0.85rem;
+  border: var(--border-width) solid var(--border);
+  object-fit: cover;
+  display: block;
+}
+.eoc-thumb {
+  width: 5rem;
+  height: 5rem;
+  border-radius: 0.75rem;
+  border: 2px solid var(--border);
+  object-fit: cover;
+  flex-shrink: 0;
 }

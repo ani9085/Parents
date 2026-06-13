@@ -1,7 +1,8 @@
 import Link from "next/link";
+import SafetyBar from "@/components/SafetyBar";
 
 // Main dashboard. Deliberately limited to 4 large buttons so the screen is
-// never overwhelming. This is a Server Component — no client JS needed here.
+// never overwhelming, with a separate safety bar (SOS / arrival) below.
 
 const MENU = [
   {
@@ -68,6 +69,8 @@ export default function Home() {
           </Link>
         ))}
       </nav>
+
+      <SafetyBar />
     </main>
   );
 }

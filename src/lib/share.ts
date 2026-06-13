@@ -1,14 +1,30 @@
 // Family-sharing codec.
 //
 // A child configures the parent's phone by sharing a single string (or QR code)
-// that encodes the favorites list. We serialize to JSON, then to URL-safe
-// base64 (UTF-8 aware, so Korean names survive the round trip).
+// that encodes the favorites list AND the family contact / map preference. We
+// serialize to JSON, then to URL-safe base64 (UTF-8 aware, so Korean survives).
 
-import type { Destination } from "./types";
+import { coerceDestination } from "./storage";
+import type { Destination, MapProvider, TextSize } from "./types";
+
+export interface ShareConfig {
+  provider?: MapProvider;
+  familyName?: string;
+  familyPhone?: string;
+  textSize?: TextSize;
+  highContrast?: boolean;
+  voice?: boolean;
+}
 
 interface SharePayload {
-  v: 1;
+  v: 2;
   favorites: Destination[];
+  config?: ShareConfig;
+}
+
+export interface DecodedShare {
+  favorites: Destination[];
+  config?: ShareConfig;
 }
 
 // --- UTF-8 safe base64 helpers (browser) ---
@@ -37,46 +53,39 @@ function fromUrlSafe(s: string): string {
   return b64;
 }
 
-/** Encode favorites into a compact, copy/paste-friendly code. */
-export function encodeFavorites(favorites: Destination[]): string {
-  const payload: SharePayload = { v: 1, favorites };
+/** Encode favorites (+ optional config) into a copy/paste-friendly code. */
+export function encodeFavorites(favorites: Destination[], config?: ShareConfig): string {
+  const payload: SharePayload = { v: 2, favorites };
+  if (config && Object.keys(config).length > 0) payload.config = config;
   return toUrlSafe(utf8ToBase64(JSON.stringify(payload)));
 }
 
 /**
- * Decode a share code back into favorites. Accepts either the bare code or a
- * full share URL (we read the part after `#data=` or `?data=`). Returns null on
- * any malformed input.
+ * Decode a share code. Accepts the bare code or a full URL (reads after
+ * `#data=` / `?data=`). Returns null on malformed input.
  */
-export function decodeFavorites(input: string): Destination[] | null {
+export function decodeShare(input: string): DecodedShare | null {
   if (!input) return null;
   let code = input.trim();
-
-  // Allow pasting a full URL.
-  const hashMatch = code.match(/[#?&]data=([^&\s]+)/);
-  if (hashMatch) code = hashMatch[1];
+  const m = code.match(/[#?&]data=([^&\s]+)/);
+  if (m) code = m[1];
 
   try {
     const json = base64ToUtf8(fromUrlSafe(code));
-    const parsed = JSON.parse(json) as SharePayload;
+    const parsed = JSON.parse(json) as Partial<SharePayload>;
     if (!parsed || !Array.isArray(parsed.favorites)) return null;
-    return parsed.favorites.filter(
-      (d): d is Destination =>
-        d &&
-        typeof d.name === "string" &&
-        typeof d.address === "string" &&
-        (d.transportType === "transit" ||
-          d.transportType === "car" ||
-          d.transportType === "walk"),
-    );
+    const favorites = parsed.favorites
+      .map(coerceDestination)
+      .filter((d): d is Destination => d !== null);
+    return { favorites, config: parsed.config };
   } catch {
     return null;
   }
 }
 
 /** Build a full URL that opens the import screen pre-loaded with the data. */
-export function buildShareUrl(favorites: Destination[]): string {
-  const code = encodeFavorites(favorites);
+export function buildShareUrl(favorites: Destination[], config?: ShareConfig): string {
+  const code = encodeFavorites(favorites, config);
   const origin =
     typeof window !== "undefined" ? window.location.origin : "https://example.com";
   return `${origin}/share#data=${code}`;
